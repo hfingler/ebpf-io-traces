@@ -84,6 +84,31 @@ int ext4_file_read(struct pt_regs *ctx, struct kiocb *iocb, struct iov_iter *to)
 	return 0;
 }
 
+int ext4_readpage(struct pt_regs *ctx, struct file *file, struct page *page)
+//int ext4_file_read(struct pt_regs *ctx)
+{
+	char comm[30];
+    bpf_get_current_comm(&comm, 30);
+	
+	if (comm[0] == 't' && comm[1] == 'o') 
+	{
+		bpf_trace_printk("=> readpage:  name: %s  \\n", file->f_path.dentry->d_iname);
+	}
+	return 0;
+}
+
+int ext4_readpages(struct pt_regs *ctx, struct file *file, struct address_space *mapping,
+		struct list_head *pages, unsigned nr_pages)
+{
+	char comm[30];
+    bpf_get_current_comm(&comm, 30);
+	
+	if (comm[0] == 't' && comm[1] == 'o') 
+	{
+		bpf_trace_printk("=> readpageS:  name: %s  \\n", file->f_path.dentry->d_iname);
+	}
+	return 0;
+}
 
 """
 
@@ -92,6 +117,9 @@ b = BPF(text=bpf_text)
 b.attach_kprobe(event="ext4_mpage_readpages", fn_name="fblktrace_read_pages");
 #b.attach_kretprobe(event="ext4_file_open",  fn_name="fblktrace_ext4_file_open");
 b.attach_kprobe(event="ext4_file_read_iter", fn_name="ext4_file_read")
+
+b.attach_kprobe(event="ext4_readpage", fn_name="ext4_readpage")
+b.attach_kprobe(event="ext4_readpages", fn_name="ext4_readpages")
 
 print ('printing...')
 while True:
