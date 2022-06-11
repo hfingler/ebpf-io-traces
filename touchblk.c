@@ -6,14 +6,13 @@
 #include <fcntl.h>
 #include <sys/mman.h> 
 #include <errno.h>
+#include <string.h>
 
-//1mb = 256 blocks
+//1mb = 256 4K blocks
 
-#define USE_MMAP 0
-
-int n = 2;
+int n = 4;
 int read_size = 4096;
-int read_order[] = {34, 100};
+int read_order[] = {34, 100, 34, 100};
 
 int main() {
 
@@ -23,40 +22,45 @@ int main() {
         return 1;
     }
 
-    #if USE_MMAP
+    //setup mmap
     struct stat s;
-    int status = fstat (fd, & s);
+    int status = fstat(fd, & s);
     if (status < 0) {
         printf("stat dummy.dat failed: %s", strerror (errno));
         return -1;
     }
     size_t size = s.st_size;
 
-    const char *mapped;
-    mapped = mmap (0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    char *mapped;
+    mapped = mmap (0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (mapped == MAP_FAILED) {
         printf("MMAP failed\n");
         return -1;
     }
-    #endif
 
     char buf[read_size];
+    // do syscalls
     for (int i = 0 ; i < n ; i++) {
-        #if !USE_MMAP
-            lseek(fd, read_order[i]*4096, SEEK_SET);
-            printf("reading %d\n", read_order[i]);
-            int bytes_read = read(fd, buf, read_size);
-            if (bytes_read != read_size) {
-                printf("Did not read enough bytes\n");
-                return -1;
-            }
-            else {
-                printf("read %x\n", *buf);
-            }
-        #else
-            buf[0] = mapped[read_order[i]*4096];
-            printf("read %x\n", *buf);
-        #endif
+
+        lseek(fd, read_order[i]*4096, SEEK_SET);
+        printf("reading %d\n", read_order[i]);
+        int bytes_read = read(fd, buf, read_size);
+        if (bytes_read != read_size) {
+            printf("Did not read enough bytes\n");
+            return -1;
+        }
+        else {
+            printf("read %d, first char: %x\n", bytes_read, *buf);
+        }
+        
+    }
+    // do mmap
+    for (int i = 0 ; i < n ; i++) {
+        int base_offset = read_order[i]*4096; 
+        for (int j = 0 ; j < read_size ; j++ ) {
+            buf[j] = mapped[base_offset+j];
+            mapped[base_offset+j] = j;
+        }
     }
 
     return 0;

@@ -68,12 +68,31 @@ int fblktrace_read_pages(struct pt_regs *ctx, struct address_space *mapping,
 	return 0;
 }
 
+int ext4_file_read(struct pt_regs *ctx, struct kiocb *iocb, struct iov_iter *to)
+//int ext4_file_read(struct pt_regs *ctx)
+{
+	char comm[30];
+    bpf_get_current_comm(&comm, 30);
+
+	//if( __builtin_memcmp(iocb->ki_filp->f_path.dentry->d_iname, touchblk, 5) == 0 ) {
+	//if( iocb->ki_filp->f_path.dentry->d_iname[0] == 'd' && iocb->ki_filp->f_path.dentry->d_iname[1] == 'u')
+	
+	if (comm[0] == 't' && comm[1] == 'o') 
+	{
+		bpf_trace_printk("=> name: %s  offset: %lu  \\n", iocb->ki_filp->f_path.dentry->d_iname, iocb->ki_pos);
+	}
+	return 0;
+}
+
+
 """
 
 b = BPF(text=bpf_text)
 
 b.attach_kprobe(event="ext4_mpage_readpages", fn_name="fblktrace_read_pages");
 #b.attach_kretprobe(event="ext4_file_open",  fn_name="fblktrace_ext4_file_open");
+b.attach_kprobe(event="ext4_file_read_iter", fn_name="ext4_file_read")
+
 print ('printing...')
 while True:
-    b.trace_print();
+    b.trace_print()
