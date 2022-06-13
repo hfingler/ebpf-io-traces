@@ -56,7 +56,7 @@ int main() {
     }
     size_t size = s.st_size;
 
-    printf("mmaping %u bytes\n", size);
+    printf("mmaping %lu bytes\n", size);
     char *mapped;
     mapped = mmap (0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped == MAP_FAILED) {
@@ -70,7 +70,7 @@ int main() {
         for (int j = 0 ; j < read_size ; j++ ) {
             //mapped[base_offset+j] = j;
             buf[j] = mapped[base_offset+j];
-            printf("%x ", buf[j]);
+            //printf("%x ", buf[j]);
         }
     }
 
