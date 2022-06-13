@@ -16,6 +16,7 @@ bpf_text = """
 #include <uapi/linux/ptrace.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <asm/tlbflush.h>
 
 #define PAGE_SHIFT 12
 
@@ -110,16 +111,32 @@ int ext4_readpages(struct pt_regs *ctx, struct file *file, struct address_space 
 	return 0;
 }
 
+int ext4_pf(struct pt_regs *ctx, struct vm_fault *vmf)
+{
+	char comm[30];
+    bpf_get_current_comm(&comm, 30);
+	
+	if (comm[0] == 't' && comm[1] == 'o') 
+	{
+		bpf_trace_printk("=> ext4_pf:  VA: %lu   offset %lu \\n", vmf->address, vmf->pgoff);
+	}
+	return 0;
+}
+
 """
 
 b = BPF(text=bpf_text)
 
 b.attach_kprobe(event="ext4_mpage_readpages", fn_name="fblktrace_read_pages");
 #b.attach_kretprobe(event="ext4_file_open",  fn_name="fblktrace_ext4_file_open");
-b.attach_kprobe(event="ext4_file_read_iter", fn_name="ext4_file_read")
 
-b.attach_kprobe(event="ext4_readpage", fn_name="ext4_readpage")
-b.attach_kprobe(event="ext4_readpages", fn_name="ext4_readpages")
+#b.attach_kprobe(event="ext4_file_read_iter", fn_name="ext4_file_read")
+#b.attach_kprobe(event="ext4_readpage", fn_name="ext4_readpage")
+#b.attach_kprobe(event="ext4_readpages", fn_name="ext4_readpages")
+
+b.attach_kprobe(event="ext4_filemap_fault", fn_name="ext4_pf")
+
+
 
 print ('printing...')
 while True:
